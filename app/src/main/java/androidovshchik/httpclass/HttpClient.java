@@ -1,20 +1,18 @@
 package androidovshchik.httpclass;
 
 import android.content.Context;
-import android.support.annotation.Nullable;
 import android.support.annotation.VisibleForTesting;
+import android.util.Base64;
 
 import com.android.volley.AuthFailureError;
-import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Header;
-import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
 import com.android.volley.VolleyLog;
 import com.android.volley.toolbox.HttpResponse;
 import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.RequestFuture;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
 import java.io.DataOutputStream;
@@ -57,10 +55,10 @@ public class HttpClient {
         timeout = builder.timeout;
     }
 
-    protected <T> T execute(RequestFuture<T> future, MyRequest<T> myRequest) {
+    protected <T> T execute(RequestFuture<T> future, Request<T> myRequest) {
         queue.add(myRequest);
         try {
-            return future.get(timeout, TimeUnit.MILLISECONDS);
+            return future.get(timeout, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             VolleyLog.e(e, null);
         } catch (ExecutionException e) {
@@ -74,15 +72,15 @@ public class HttpClient {
     public static class Builder {
 
         private int certificate = 0;
-        private int timeout = DefaultRetryPolicy.DEFAULT_TIMEOUT_MS;
+        private int timeout = 30;
 
         public Builder certificate(int rawId) {
             certificate = rawId;
             return this;
         }
 
-        public Builder timeout(int milliseconds) {
-            timeout = milliseconds;
+        public Builder timeout(int seconds) {
+            timeout = seconds;
             return this;
         }
 
@@ -128,6 +126,16 @@ public class HttpClient {
             return this;
         }
 
+        public Map<String, String> headers() {
+            String credentials = Base64.encodeToString((proxyLogin + proxyPassword).getBytes(), Base64.NO_WRAP);
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Authorization", "Basic " + credentials);
+            headers.put("Proxy-Authorization", "Basic " + credentials);
+            headers.put("Proxy-Authenticate", "Basic " + credentials);
+            headers.put("WWW-Authorization", "Basic " + credentials);
+            return headers;
+        }
+
         @Override
         public String toString() {
             return "MyProxy{" +
@@ -140,22 +148,22 @@ public class HttpClient {
         }
     }
 
-    public static class MyRequest<T> extends Request<T> {
+    public static class MyStringRequest extends StringRequest {
 
-        public CustomRequest(int method, String url, @Nullable Response.ErrorListener listener) {
-            super(method, url, listener);
-            myRequest.setRetryPolicy(new DefaultRetryPolicy(timeout, retryCount,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        private MyProxy myProxy;
+
+        public MyStringRequest(int method, String url, MyProxy myProxy, RequestFuture<String> future) {
+            super(method, url, future, future);
+            this.myProxy = myProxy;
         }
 
         @Override
-        protected Response<T> parseNetworkResponse(NetworkResponse response) {
-            return null;
-        }
-
-        @Override
-        protected void deliverResponse(T response) {
-
+        public Map<String, String> getHeaders() throws AuthFailureError {
+            Map<String, String> headers = super.getHeaders();
+            if (myProxy != null) {
+                headers.putAll(myProxy.headers());
+            }
+            return headers;
         }
     }
 
