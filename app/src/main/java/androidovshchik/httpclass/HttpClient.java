@@ -5,157 +5,95 @@ import android.content.Context;
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.HttpResponse;
+import com.android.volley.VolleyLog;
 import com.android.volley.toolbox.HurlStack;
-import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.RequestFuture;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @SuppressWarnings({"unused", "NullableProblems", "ConstantConditions"})
-public class HttpClient implements Response.Listener<Object>, Response.ErrorListener {
+public class HttpClient {
+
+    static {
+        VolleyLog.DEBUG = BuildConfig.DEBUG;
+    }
 
     protected final RequestQueue queue;
-
-    protected MyProxy myProxy;
-
-    protected HurlStack hurlStack = new HurlStack() {
-
-        @Override
-        protected HttpURLConnection createConnection(URL url) throws IOException {
-            url.
-                Proxy proxy = new Proxy(myProxy.proxyType, InetSocketAddress.createUnresolved(myProxy.proxyHost, myProxy.proxyPort));
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection(proxy);
-            // Workaround for the M release HttpURLConnection not observing the
-            // HttpURLConnection.setFollowRedirects() property.
-            // https://code.google.com/p/android/issues/detail?id=194495
-            connection.setInstanceFollowRedirects(HttpURLConnection.getFollowRedirects());
-            return connection;
-        }
-
-        @Override
-        public HttpResponse executeRequest(Request<?> request, Map<String, String> additionalHeaders) throws IOException, AuthFailureError {
-            String url = request.getUrl();
-            HashMap<String, String> map = new HashMap<>();
-            map.putAll(additionalHeaders);
-            // Request.getHeaders() takes precedence over the given additional (cache) headers).
-            map.putAll(request.getHeaders());
-            if (mUrlRewriter != null) {
-                String rewritten = mUrlRewriter.rewriteUrl(url);
-                if (rewritten == null) {
-                    throw new IOException("URL blocked by rewriter: " + url);
-                }
-                url = rewritten;
-            }
-            URL parsedUrl = new URL(url);
-            HttpURLConnection connection = openConnection(parsedUrl, request);
-            boolean keepConnectionOpen = false;
-            try {
-                for (String headerName : map.keySet()) {
-                    connection.setRequestProperty(headerName, map.get(headerName));
-                }
-                setConnectionParametersForRequest(connection, request);
-                // Initialize HttpResponse with data from the HttpURLConnection.
-                int responseCode = connection.getResponseCode();
-                if (responseCode == -1) {
-                    // -1 is returned by getResponseCode() if the response code could not be retrieved.
-                    // Signal to the caller that something was wrong with the connection.
-                    throw new IOException("Could not retrieve response code from HttpUrlConnection.");
-                }
-
-                if (!hasResponseBody(request.getMethod(), responseCode)) {
-                    return new HttpResponse(responseCode, convertHeaders(connection.getHeaderFields()));
-                }
-
-                // Need to keep the connection open until the stream is consumed by the caller. Wrap the
-                // stream such that close() will disconnect the connection.
-                keepConnectionOpen = true;
-                return new HttpResponse(
-                    responseCode,
-                    convertHeaders(connection.getHeaderFields()),
-                    connection.getContentLength(),
-                    new UrlConnectionInputStream(connection));
-            } finally {
-                if (!keepConnectionOpen) {
-                    connection.disconnect();
-                }
-            }
-        }
-    };
 
     public HttpClient(Context context) {
         this(context, new Builder().create());
     }
 
     public HttpClient(Context context, Builder builder) {
-        queue = Volley.newRequestQueue(context, hurlStack);
+        queue = Volley.newRequestQueue(context, new ProxyStack());
     }
 
-    public getJson() {
-        new JsonObjectRequest(Request.Method.GET, "", null, this, this);
+    public String getSync(String url) {
+        return getSync(url, null);
     }
 
-    /*public Response get(String url) throws IOException {
-        return get(url, null);
+    public String getSync(String url, final Map<String, String> headers) {
+        RequestFuture<String> future = RequestFuture.newFuture();
+        queue.add(new StringRequest(Request.Method.GET, url, future, future) {
+
+            @Override
+            public Map<String, String> getHeaders() {
+                return headers != null ? headers : new HashMap<String, String>();
+            }
+        });
+        try {
+            return future.get(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            VolleyLog.e(e, null);
+        } catch (ExecutionException e) {
+            VolleyLog.e(e, null);
+        } catch (TimeoutException e) {
+            VolleyLog.e(e, null);
+        }
+        return null;
     }
 
-    public Response get(String url, Headers headers) throws IOException {
-        return client.newCall(new Request.Builder()
-            .url(url)
-            .headers(headers != null ? headers : new Headers.Builder().build())
-            .tag("")
-            .build())
-            .execute();
+    public String postSync(String url) {
+        return postSync(url, null, null);
     }
 
-    public Response post(String url, RequestBody body) throws IOException {
-        return post(url, body, null);
-    }
+    public String postSync(String url, final String contentType, final Map<String, String> headers) {
+        RequestFuture<String> future = RequestFuture.newFuture();
+        queue.add(new StringRequest(Request.Method.POST, url, future, future) {
 
-    public Response post(String url, RequestBody body, Headers headers) throws IOException {
-        return client.newCall(new Request.Builder()
-            .url(url)
-            .headers(headers != null ? headers : new Headers.Builder().build())
-            .post(body)
-            .tag("")
-            .build())
-            .execute();
-    }
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return headers != null ? headers : super.getHeaders();
+            }
 
-    public void getAsync(String url) {
-        getAsync(url, null);
-    }
+            @Override
+            public String getBodyContentType() {
+                return contentType != null ? contentType : super.getBodyContentType();
+            }
 
-    public void getAsync(String url, Headers headers) {
-        client.newCall(new Request.Builder()
-            .url(url)
-            .headers(headers != null ? headers : new Headers.Builder().build())
-            .tag("")
-            .build())
-            .enqueue(this);
-    }
+            @Override
+            public byte[] getBody() {
 
-    public void postAsync(String url, RequestBody body) {
-        postAsync(url, body, null);
+            }
+        });
+        try {
+            return future.get(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            VolleyLog.e(e, null);
+        } catch (ExecutionException e) {
+            VolleyLog.e(e, null);
+        } catch (TimeoutException e) {
+            VolleyLog.e(e, null);
+        }
+        return null;
     }
-
-    public void postAsync(String url, RequestBody body, Headers headers) {
-        client.newCall(new Request.Builder()
-            .url(url)
-            .headers(headers != null ? headers : new Headers.Builder().build())
-            .post(body)
-            .tag("")
-            .build())
-            .enqueue(this);
-    }*/
 
     public void cancel(String tag) {
 
@@ -163,16 +101,6 @@ public class HttpClient implements Response.Listener<Object>, Response.ErrorList
 
     public void cancelAll() {
 
-    }
-
-    @Override
-    public void onResponse(Object response) {
-
-    }
-
-    @Override
-    public void onErrorResponse(VolleyError error) {
-        error.printStackTrace();
     }
 
     public static class Builder {
@@ -209,11 +137,16 @@ public class HttpClient implements Response.Listener<Object>, Response.ErrorList
 
     public static class MyProxy {
 
-        private String proxyHost = "";
-        private int proxyPort = 80;
-        private String proxyLogin = "";
-        private String proxyPassword = "";
         private Proxy.Type proxyType = Proxy.Type.HTTP;
+        private String proxyHost = "http://0";
+        private int proxyPort = 80;
+        private String proxyLogin = "12345";
+        private String proxyPassword = "12345";
+
+        public MyProxy type(Proxy.Type type) {
+            proxyType = type;
+            return this;
+        }
 
         public MyProxy host(String host) {
             proxyHost = host;
@@ -235,11 +168,6 @@ public class HttpClient implements Response.Listener<Object>, Response.ErrorList
             return this;
         }
 
-        public MyProxy type(Proxy.Type type) {
-            proxyType = type;
-            return this;
-        }
-
         public MyProxy create() {
             return this;
         }
@@ -254,5 +182,9 @@ public class HttpClient implements Response.Listener<Object>, Response.ErrorList
                 ", proxyType=" + proxyType +
                 '}';
         }
+    }
+
+    public static class ProxyStack extends HurlStack {
+
     }
 }
