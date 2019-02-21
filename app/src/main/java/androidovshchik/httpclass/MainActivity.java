@@ -3,11 +3,9 @@ package androidovshchik.httpclass;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.android.volley.toolbox.RequestFuture;
 
-import java.net.Proxy;
 import java.util.concurrent.Callable;
 
 import io.reactivex.Observable;
@@ -17,6 +15,7 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
 
 import static com.android.volley.Request.Method.GET;
+import static java.net.Proxy.Type.HTTP;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -33,13 +32,17 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public String call() {
-                String url = "https://telegram.org/index.html";
+                String url = "https://telegram.org";
                 HttpClient.MyProxy myProxy = new HttpClient.MyProxy()
-                    .type(Proxy.Type.HTTP)
+                    .type(HTTP)
                     .host("45.32.152.77")
                     .port(28834)
                     .login("gzKdu0")
                     .password("ao13CD")
+                    /*.host("138.59.204.19")
+                    .port(9703)
+                    .login("uvLW5c")
+                    .password("ZKcyaz")*/
                     .create();
                 RequestFuture<String> future = RequestFuture.newFuture();
                 return client.execute(new MyStringRequest(GET, url, myProxy, future), future);
@@ -55,8 +58,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void accept(Throwable throwable) {
                     throwable.printStackTrace();
-                    Toast.makeText(getApplicationContext(), throwable.toString(), Toast.LENGTH_SHORT)
-                        .show();
+                    ((TextView) findViewById(R.id.tv)).setText(throwable.toString());
                 }
             }));
     }

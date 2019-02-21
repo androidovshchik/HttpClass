@@ -100,8 +100,8 @@ public class HttpClient {
         private Proxy.Type proxyType = Proxy.Type.HTTP;
         private String proxyHost = "http://0";
         private int proxyPort = 80;
-        private String proxyLogin = "qwerty";
-        private String proxyPassword = "12345";
+        private String proxyLogin;
+        private String proxyPassword;
 
         public MyProxy type(Proxy.Type type) {
             proxyType = type;
@@ -133,15 +133,17 @@ public class HttpClient {
         }
 
         public Map<String, String> headers() throws UnsupportedEncodingException {
-            String credentials = Base64.encodeToString((proxyLogin + proxyPassword)
-                .getBytes("UTF-8"), Base64.NO_WRAP);
             Map<String, String> headers = new HashMap<>();
-            headers.put("Authenticate", "Basic " + credentials);
-            headers.put("Authorization", "Basic " + credentials);
-            headers.put("Proxy-Authorization", "Basic " + credentials);
-            headers.put("Proxy-Authenticate", "Basic " + credentials);
-            headers.put("WWW-Authorization", "Basic " + credentials);
-            headers.put("WWW-Authenticate", "Basic " + credentials);
+            if (proxyLogin != null && proxyPassword != null) {
+                String credentials = Base64.encodeToString((proxyLogin + ":" + proxyPassword)
+                    .getBytes("UTF-8"), Base64.NO_WRAP);
+                headers.put("Authenticate", "Basic " + credentials);
+                headers.put("Authorization", "Basic " + credentials);
+                headers.put("Proxy-Authorization", "Basic " + credentials);
+                headers.put("Proxy-Authenticate", "Basic " + credentials);
+                headers.put("WWW-Authorization", "Basic " + credentials);
+                headers.put("WWW-Authenticate", "Basic " + credentials);
+            }
             return headers;
         }
 
