@@ -167,21 +167,21 @@ public class HttpClient {
 
         @Override
         public Map<String, String> getHeaders() throws AuthFailureError {
-            Map<String, String> headers = super.getHeaders();
+            Map<String, String> headers = new HashMap<>(super.getHeaders());
             if (myProxy != null) {
                 try {
-                    new HashMap<>(headers).putAll(myProxy.headers());
+                    headers.putAll(myProxy.headers());
                 } catch (UnsupportedEncodingException e) {
                     VolleyLog.e(e, "");
                 }
             }
+            VolleyLog.d("%s", headers.toString());
             return headers;
         }
     }
 
     /**
      * Based on HurlStack class
-     *
      * @see HurlStack
      */
     public static class ProxyStack extends BaseHttpStack {
@@ -335,6 +335,7 @@ public class HttpClient {
                 throw new IOException("Request must be instance of MyRequest class");
             }
             MyProxy myProxy = ((MyRequest) request).myProxy;
+            VolleyLog.d("%s", myProxy.toString());
             SocketAddress address = InetSocketAddress.createUnresolved(myProxy.proxyHost, myProxy.proxyPort);
             Proxy proxy = new Proxy(myProxy.proxyType, address);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection(proxy);

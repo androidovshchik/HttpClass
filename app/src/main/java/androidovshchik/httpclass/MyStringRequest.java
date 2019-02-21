@@ -12,13 +12,13 @@ import java.io.UnsupportedEncodingException;
  * @see com.android.volley.toolbox.StringRequest
  */
 @SuppressWarnings("unused")
-public class SimpleStringRequest extends HttpClient.MyRequest<String> {
+public class MyStringRequest extends HttpClient.MyRequest<String> {
 
     private final Object mLock = new Object();
 
     private Response.Listener<String> mListener;
 
-    public SimpleStringRequest(int method, String url, HttpClient.MyProxy myProxy, RequestFuture<String> future) {
+    public MyStringRequest(int method, String url, HttpClient.MyProxy myProxy, RequestFuture<String> future) {
         super(method, url, myProxy, future);
         mListener = future;
     }

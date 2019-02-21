@@ -42,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
                     .password("ao13CD")
                     .create();
                 RequestFuture<String> future = RequestFuture.newFuture();
-                return client.execute(new SimpleStringRequest(GET, url, myProxy, future), future);
+                return client.execute(new MyStringRequest(GET, url, myProxy, future), future);
             }
         }).subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
