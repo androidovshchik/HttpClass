@@ -12,11 +12,9 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyLog;
-import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.HttpResponse;
 import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.RequestFuture;
-import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
 import java.io.DataOutputStream;
@@ -47,7 +45,6 @@ public class HttpClient {
     protected final RequestQueue queue;
 
     private int certificate;
-    private int retryCount;
     private int timeout;
 
     public HttpClient(Context context) {
@@ -57,58 +54,11 @@ public class HttpClient {
     public HttpClient(Context context, Builder builder) {
         queue = Volley.newRequestQueue(context, new ProxyStack());
         certificate = builder.certificate;
-        retryCount = builder.retryCount;
         timeout = builder.timeout;
     }
 
-    public String getSync(String url) {
-        return getSync(url, null);
-    }
-
-    public String getSync(String url, final Map<String, String> headers) {
-        RequestFuture<String> future = RequestFuture.newFuture();
-        return execute(future, new StringRequest(Request.Method.GET, url, future, future) {
-
-            @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                return headers != null ? headers : super.getHeaders();
-            }
-        });
-    }
-
-    public String postSync(String url) {
-        return postSync(url, null, null, null);
-    }
-
-    public String postSync(String url, final String contentType, final byte[] body) {
-        return postSync(url, contentType, body, null);
-    }
-
-    public String postSync(String url, final String contentType, final byte[] body, final Map<String, String> headers) {
-        RequestFuture<String> future = RequestFuture.newFuture();
-        return execute(future, new StringRequest(Request.Method.POST, url, future, future) {
-
-            @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                return headers != null ? headers : super.getHeaders();
-            }
-
-            @Override
-            public String getBodyContentType() {
-                return contentType != null ? contentType : super.getBodyContentType();
-            }
-
-            @Override
-            public byte[] getBody() throws AuthFailureError {
-                return body != null ? body : super.getBody();
-            }
-        });
-    }
-
-    protected String execute(RequestFuture<String> future, StringRequest request) {
-        request.setRetryPolicy(new DefaultRetryPolicy(timeout, retryCount,
-            DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-        queue.add(request);
+    protected <T> T execute(RequestFuture<T> future, MyRequest<T> myRequest) {
+        queue.add(myRequest);
         try {
             return future.get(timeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -124,16 +74,10 @@ public class HttpClient {
     public static class Builder {
 
         private int certificate = 0;
-        private int retryCount = DefaultRetryPolicy.DEFAULT_MAX_RETRIES;
         private int timeout = DefaultRetryPolicy.DEFAULT_TIMEOUT_MS;
 
         public Builder certificate(int rawId) {
             certificate = rawId;
-            return this;
-        }
-
-        public Builder retryCount(int count) {
-            retryCount = count;
             return this;
         }
 
@@ -196,10 +140,12 @@ public class HttpClient {
         }
     }
 
-    public static class CustomRequest<T> extends Request<T> {
+    public static class MyRequest<T> extends Request<T> {
 
         public CustomRequest(int method, String url, @Nullable Response.ErrorListener listener) {
             super(method, url, listener);
+            myRequest.setRetryPolicy(new DefaultRetryPolicy(timeout, retryCount,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
         }
 
         @Override
@@ -215,18 +161,9 @@ public class HttpClient {
 
     public static class ProxyStack extends HurlStack {
 
-        private static final int HTTP_CONTINUE = 100;
+        private static final String HEADER_CONTENT_TYPE = "Content-Type";
 
-        /**
-         * An interface for transforming URLs before use.
-         */
-        public interface UrlRewriter {
-            /**
-             * Returns a URL to use instead of the provided one, or null to indicate this URL should not
-             * be used at all.
-             */
-            String rewriteUrl(String originalUrl);
-        }
+        private static final int HTTP_CONTINUE = 100;
 
         private final HurlStack.UrlRewriter mUrlRewriter;
         private final SSLSocketFactory mSslSocketFactory;
@@ -469,9 +406,8 @@ public class HttpClient {
             // output stream.
             connection.setDoOutput(true);
             // Set the content-type unless it was already set (by Request#getHeaders).
-            if (!connection.getRequestProperties().containsKey(HttpHeaderParser.HEADER_CONTENT_TYPE)) {
-                connection.setRequestProperty(
-                    HttpHeaderParser.HEADER_CONTENT_TYPE, request.getBodyContentType());
+            if (!connection.getRequestProperties().containsKey(HEADER_CONTENT_TYPE)) {
+                connection.setRequestProperty(HEADER_CONTENT_TYPE, request.getBodyContentType());
             }
             DataOutputStream out = new DataOutputStream(connection.getOutputStream());
             out.write(body);
