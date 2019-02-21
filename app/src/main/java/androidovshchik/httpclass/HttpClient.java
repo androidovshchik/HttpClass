@@ -1,7 +1,6 @@
 package androidovshchik.httpclass;
 
 import android.content.Context;
-import android.support.annotation.VisibleForTesting;
 import android.util.Base64;
 
 import com.android.volley.AuthFailureError;
@@ -13,7 +12,6 @@ import com.android.volley.toolbox.BaseHttpStack;
 import com.android.volley.toolbox.HttpResponse;
 import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.RequestFuture;
-import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
 import java.io.DataOutputStream;
@@ -155,15 +153,12 @@ public class HttpClient {
         }
     }
 
-    /**
-     * Example request implementation
-     **/
-    public static class MyStringRequest extends StringRequest {
+    public static abstract class MyRequest<T> extends Request<T> {
 
-        private MyProxy myProxy;
+        protected MyProxy myProxy;
 
-        public MyStringRequest(int method, String url, MyProxy myProxy, RequestFuture<String> future) {
-            super(method, url, future, future);
+        public MyRequest(int method, String url, MyProxy myProxy, RequestFuture<String> future) {
+            super(method, url, future);
             this.myProxy = myProxy;
             setShouldCache(false);
         }
@@ -272,7 +267,6 @@ public class HttpClient {
             }
         }
 
-        @VisibleForTesting
         static List<Header> convertHeaders(Map<String, List<String>> responseHeaders) {
             List<Header> headerList = new ArrayList<>(responseHeaders.size());
             for (Map.Entry<String, List<String>> entry : responseHeaders.entrySet()) {
