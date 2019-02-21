@@ -136,10 +136,12 @@ public class HttpClient {
             String credentials = Base64.encodeToString((proxyLogin + proxyPassword)
                 .getBytes("UTF-8"), Base64.NO_WRAP);
             Map<String, String> headers = new HashMap<>();
+            headers.put("Authenticate", "Basic " + credentials);
             headers.put("Authorization", "Basic " + credentials);
             headers.put("Proxy-Authorization", "Basic " + credentials);
             headers.put("Proxy-Authenticate", "Basic " + credentials);
             headers.put("WWW-Authorization", "Basic " + credentials);
+            headers.put("WWW-Authenticate", "Basic " + credentials);
             return headers;
         }
 
@@ -184,7 +186,7 @@ public class HttpClient {
      * Based on HurlStack class
      * @see HurlStack
      */
-    public static class ProxyStack extends BaseHttpStack {
+    private static class ProxyStack extends BaseHttpStack {
 
         private static final String HEADER_CONTENT_TYPE = "Content-Type";
 
@@ -194,20 +196,13 @@ public class HttpClient {
         private final SSLSocketFactory mSslSocketFactory;
 
         public ProxyStack() {
-            this(/* urlRewriter = */ null);
+            this(null);
         }
 
-        /**
-         * @param urlRewriter Rewriter to use for request URLs
-         */
         public ProxyStack(HurlStack.UrlRewriter urlRewriter) {
-            this(urlRewriter, /* sslSocketFactory = */ null);
+            this(urlRewriter, null);
         }
 
-        /**
-         * @param urlRewriter      Rewriter to use for request URLs
-         * @param sslSocketFactory SSL factory to use for HTTPS connections
-         */
         public ProxyStack(HurlStack.UrlRewriter urlRewriter, SSLSocketFactory sslSocketFactory) {
             mUrlRewriter = urlRewriter;
             mSslSocketFactory = sslSocketFactory;
@@ -277,14 +272,6 @@ public class HttpClient {
             return headerList;
         }
 
-        /**
-         * Checks if a response message contains a body.
-         *
-         * @param requestMethod request method
-         * @param responseCode  response status code
-         * @return whether the response has a body
-         * @see <a href="https://tools.ietf.org/html/rfc7230#section-3.3">RFC 7230 section 3.3</a>
-         */
         private static boolean hasResponseBody(int requestMethod, int responseCode) {
             return requestMethod != Request.Method.HEAD
                 && !(HTTP_CONTINUE <= responseCode && responseCode < HttpURLConnection.HTTP_OK)
@@ -292,10 +279,6 @@ public class HttpClient {
                 && responseCode != HttpURLConnection.HTTP_NOT_MODIFIED;
         }
 
-        /**
-         * Wrapper for a {@link HttpURLConnection}'s InputStream which disconnects the connection on
-         * stream close.
-         */
         static class UrlConnectionInputStream extends FilterInputStream {
             private final HttpURLConnection mConnection;
 
@@ -311,12 +294,6 @@ public class HttpClient {
             }
         }
 
-        /**
-         * Initializes an {@link InputStream} from the given {@link HttpURLConnection}.
-         *
-         * @param connection
-         * @return an HttpEntity populated with data from <code>connection</code>.
-         */
         private static InputStream inputStreamFromConnection(HttpURLConnection connection) {
             InputStream inputStream;
             try {
@@ -327,9 +304,6 @@ public class HttpClient {
             return inputStream;
         }
 
-        /**
-         * Create an {@link HttpURLConnection} for the specified {@code url}.
-         */
         protected HttpURLConnection createConnection(URL url, Request<?> request) throws IOException {
             if (!(request instanceof MyRequest)) {
                 throw new IOException("Request must be instance of MyRequest class");
@@ -348,13 +322,6 @@ public class HttpClient {
             return connection;
         }
 
-        /**
-         * Opens an {@link HttpURLConnection} with parameters.
-         *
-         * @param url
-         * @return an open connection
-         * @throws IOException
-         */
         private HttpURLConnection openConnection(URL url, Request<?> request) throws IOException {
             HttpURLConnection connection = createConnection(url, request);
 
