@@ -20,7 +20,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.SocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -177,22 +179,16 @@ public class HttpClient {
         }
     }
 
+    /**
+     * Based on HurlStack class
+     *
+     * @see HurlStack
+     */
     public static class ProxyStack extends BaseHttpStack {
 
         private static final String HEADER_CONTENT_TYPE = "Content-Type";
 
         private static final int HTTP_CONTINUE = 100;
-
-        /**
-         * An interface for transforming URLs before use.
-         */
-        public interface UrlRewriter {
-            /**
-             * Returns a URL to use instead of the provided one, or null to indicate this URL should not
-             * be used at all.
-             */
-            String rewriteUrl(String originalUrl);
-        }
 
         private final HurlStack.UrlRewriter mUrlRewriter;
         private final SSLSocketFactory mSslSocketFactory;
@@ -334,8 +330,14 @@ public class HttpClient {
         /**
          * Create an {@link HttpURLConnection} for the specified {@code url}.
          */
-        protected HttpURLConnection createConnection(URL url) throws IOException {
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        protected HttpURLConnection createConnection(URL url, Request<?> request) throws IOException {
+            if (!(request instanceof MyRequest)) {
+                throw new IOException("Request must be instance of MyRequest class");
+            }
+            MyProxy myProxy = ((MyRequest) request).myProxy;
+            SocketAddress address = InetSocketAddress.createUnresolved(myProxy.proxyHost, myProxy.proxyPort);
+            Proxy proxy = new Proxy(myProxy.proxyType, address);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection(proxy);
 
             // Workaround for the M release HttpURLConnection not observing the
             // HttpURLConnection.setFollowRedirects() property.
@@ -353,7 +355,7 @@ public class HttpClient {
          * @throws IOException
          */
         private HttpURLConnection openConnection(URL url, Request<?> request) throws IOException {
-            HttpURLConnection connection = createConnection(url);
+            HttpURLConnection connection = createConnection(url, request);
 
             int timeoutMs = request.getTimeoutMs();
             connection.setConnectTimeout(timeoutMs);

@@ -8,8 +8,7 @@ import com.android.volley.toolbox.RequestFuture;
 import java.io.UnsupportedEncodingException;
 
 /**
- * Base on StringRequest class
- *
+ * Based on StringRequest class
  * @see com.android.volley.toolbox.StringRequest
  */
 @SuppressWarnings("unused")
