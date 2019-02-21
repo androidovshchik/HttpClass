@@ -3,6 +3,7 @@ package androidovshchik.httpclass;
 import android.content.Context;
 
 import com.android.volley.AuthFailureError;
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.VolleyLog;
@@ -11,14 +12,14 @@ import com.android.volley.toolbox.RequestFuture;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
+import java.io.ByteArrayOutputStream;
 import java.net.Proxy;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-@SuppressWarnings({"unused", "NullableProblems", "ConstantConditions"})
+@SuppressWarnings("unused")
 public class HttpClient {
 
     static {
@@ -27,12 +28,19 @@ public class HttpClient {
 
     protected final RequestQueue queue;
 
+    private int timeout;
+    private int retryCount;
+    private int certificate;
+
     public HttpClient(Context context) {
         this(context, new Builder().create());
     }
 
     public HttpClient(Context context, Builder builder) {
         queue = Volley.newRequestQueue(context, new ProxyStack());
+        timeout = builder.timeout;
+        retryCount = builder.retryCount;
+        certificate = builder.certificate;
     }
 
     public String getSync(String url) {
@@ -41,32 +49,22 @@ public class HttpClient {
 
     public String getSync(String url, final Map<String, String> headers) {
         RequestFuture<String> future = RequestFuture.newFuture();
-        queue.add(new StringRequest(Request.Method.GET, url, future, future) {
+        return execute(future, new StringRequest(Request.Method.GET, url, future, future) {
 
             @Override
-            public Map<String, String> getHeaders() {
-                return headers != null ? headers : new HashMap<String, String>();
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                return headers != null ? headers : super.getHeaders();
             }
         });
-        try {
-            return future.get(30, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            VolleyLog.e(e, null);
-        } catch (ExecutionException e) {
-            VolleyLog.e(e, null);
-        } catch (TimeoutException e) {
-            VolleyLog.e(e, null);
-        }
-        return null;
     }
 
     public String postSync(String url) {
         return postSync(url, null, null);
     }
 
-    public String postSync(String url, final String contentType, final Map<String, String> headers) {
+    public String postSync(String url, final String contentType, final ByteArrayOutputStream stream, final Map<String, String> headers) {
         RequestFuture<String> future = RequestFuture.newFuture();
-        queue.add(new StringRequest(Request.Method.POST, url, future, future) {
+        return execute(future, new StringRequest(Request.Method.POST, url, future, future) {
 
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
@@ -79,12 +77,18 @@ public class HttpClient {
             }
 
             @Override
-            public byte[] getBody() {
-
+            public byte[] getBody() throws AuthFailureError {
+                return stream != null ? stream.toByteArray() : super.getBody();
             }
         });
+    }
+
+    protected String execute(RequestFuture<String> future, StringRequest request) {
+        request.setRetryPolicy(new DefaultRetryPolicy(timeout, retryCount,
+            DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        queue.add(request);
         try {
-            return future.get(30, TimeUnit.SECONDS);
+            return future.get(timeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             VolleyLog.e(e, null);
         } catch (ExecutionException e) {
@@ -105,23 +109,17 @@ public class HttpClient {
 
     public static class Builder {
 
-        private int connectTimeout = 15;
-        private int writeTimeout = 0;
-        private int readTimeout = 0;
+        private int timeout = DefaultRetryPolicy.DEFAULT_TIMEOUT_MS;
+        private int retryCount = DefaultRetryPolicy.DEFAULT_MAX_RETRIES;
         private int certificate = 0;
 
-        public Builder connectTimeout(int seconds) {
-            connectTimeout = seconds;
+        public Builder timeout(int milliseconds) {
+            timeout = milliseconds;
             return this;
         }
 
-        public Builder writeTimeout(int seconds) {
-            writeTimeout = seconds;
-            return this;
-        }
-
-        public Builder readTimeout(int seconds) {
-            readTimeout = seconds;
+        public Builder retryCount(int count) {
+            retryCount = count;
             return this;
         }
 
@@ -140,7 +138,7 @@ public class HttpClient {
         private Proxy.Type proxyType = Proxy.Type.HTTP;
         private String proxyHost = "http://0";
         private int proxyPort = 80;
-        private String proxyLogin = "12345";
+        private String proxyLogin = "qwerty";
         private String proxyPassword = "12345";
 
         public MyProxy type(Proxy.Type type) {
