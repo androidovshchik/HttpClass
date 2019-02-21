@@ -9,6 +9,7 @@ import com.android.volley.Header;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.VolleyLog;
+import com.android.volley.toolbox.BaseHttpStack;
 import com.android.volley.toolbox.HttpResponse;
 import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.RequestFuture;
@@ -19,6 +20,7 @@ import java.io.DataOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.Proxy;
 import java.net.URL;
@@ -130,8 +132,9 @@ public class HttpClient {
             return this;
         }
 
-        public Map<String, String> headers() {
-            String credentials = Base64.encodeToString((proxyLogin + proxyPassword).getBytes("UTF-8"), Base64.NO_WRAP);
+        public Map<String, String> headers() throws UnsupportedEncodingException {
+            String credentials = Base64.encodeToString((proxyLogin + proxyPassword)
+                .getBytes("UTF-8"), Base64.NO_WRAP);
             Map<String, String> headers = new HashMap<>();
             headers.put("Authorization", "Basic " + credentials);
             headers.put("Proxy-Authorization", "Basic " + credentials);
@@ -169,17 +172,32 @@ public class HttpClient {
         public Map<String, String> getHeaders() throws AuthFailureError {
             Map<String, String> headers = super.getHeaders();
             if (myProxy != null) {
-                headers.putAll(myProxy.headers());
+                try {
+                    headers.putAll(myProxy.headers());
+                } catch (UnsupportedEncodingException e) {
+                    VolleyLog.e(e, null);
+                }
             }
             return headers;
         }
     }
 
-    public static class ProxyStack extends HurlStack {
+    public static class ProxyStack extends BaseHttpStack {
 
         private static final String HEADER_CONTENT_TYPE = "Content-Type";
 
         private static final int HTTP_CONTINUE = 100;
+
+        /**
+         * An interface for transforming URLs before use.
+         */
+        public interface UrlRewriter {
+            /**
+             * Returns a URL to use instead of the provided one, or null to indicate this URL should not
+             * be used at all.
+             */
+            String rewriteUrl(String originalUrl);
+        }
 
         private final HurlStack.UrlRewriter mUrlRewriter;
         private final SSLSocketFactory mSslSocketFactory;
@@ -246,7 +264,7 @@ public class HttpClient {
                     responseCode,
                     convertHeaders(connection.getHeaderFields()),
                     connection.getContentLength(),
-                    new HurlStack.UrlConnectionInputStream(connection));
+                    new ProxyStack.UrlConnectionInputStream(connection));
             } finally {
                 if (!keepConnectionOpen) {
                     connection.disconnect();
