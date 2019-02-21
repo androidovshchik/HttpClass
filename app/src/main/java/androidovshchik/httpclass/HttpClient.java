@@ -12,7 +12,6 @@ import com.android.volley.toolbox.RequestFuture;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
-import java.io.ByteArrayOutputStream;
 import java.net.Proxy;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -28,9 +27,9 @@ public class HttpClient {
 
     protected final RequestQueue queue;
 
-    private int timeout;
-    private int retryCount;
     private int certificate;
+    private int retryCount;
+    private int timeout;
 
     public HttpClient(Context context) {
         this(context, new Builder().create());
@@ -38,9 +37,9 @@ public class HttpClient {
 
     public HttpClient(Context context, Builder builder) {
         queue = Volley.newRequestQueue(context, new ProxyStack());
-        timeout = builder.timeout;
-        retryCount = builder.retryCount;
         certificate = builder.certificate;
+        retryCount = builder.retryCount;
+        timeout = builder.timeout;
     }
 
     public String getSync(String url) {
@@ -59,10 +58,14 @@ public class HttpClient {
     }
 
     public String postSync(String url) {
-        return postSync(url, null, null);
+        return postSync(url, null, null, null);
     }
 
-    public String postSync(String url, final String contentType, final ByteArrayOutputStream stream, final Map<String, String> headers) {
+    public String postSync(String url, final String contentType, final byte[] body) {
+        return postSync(url, contentType, body, null);
+    }
+
+    public String postSync(String url, final String contentType, final byte[] body, final Map<String, String> headers) {
         RequestFuture<String> future = RequestFuture.newFuture();
         return execute(future, new StringRequest(Request.Method.POST, url, future, future) {
 
@@ -78,7 +81,7 @@ public class HttpClient {
 
             @Override
             public byte[] getBody() throws AuthFailureError {
-                return stream != null ? stream.toByteArray() : super.getBody();
+                return body != null ? body : super.getBody();
             }
         });
     }
@@ -99,22 +102,14 @@ public class HttpClient {
         return null;
     }
 
-    public void cancel(String tag) {
-
-    }
-
-    public void cancelAll() {
-
-    }
-
     public static class Builder {
 
-        private int timeout = DefaultRetryPolicy.DEFAULT_TIMEOUT_MS;
-        private int retryCount = DefaultRetryPolicy.DEFAULT_MAX_RETRIES;
         private int certificate = 0;
+        private int retryCount = DefaultRetryPolicy.DEFAULT_MAX_RETRIES;
+        private int timeout = DefaultRetryPolicy.DEFAULT_TIMEOUT_MS;
 
-        public Builder timeout(int milliseconds) {
-            timeout = milliseconds;
+        public Builder certificate(int rawId) {
+            certificate = rawId;
             return this;
         }
 
@@ -123,8 +118,8 @@ public class HttpClient {
             return this;
         }
 
-        public Builder certificate(int rawId) {
-            certificate = rawId;
+        public Builder timeout(int milliseconds) {
+            timeout = milliseconds;
             return this;
         }
 
