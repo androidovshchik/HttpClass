@@ -55,7 +55,7 @@ public class HttpClient {
         timeout = builder.timeout;
     }
 
-    protected <T> T execute(RequestFuture<T> future, Request<T> myRequest) {
+    public <T> T execute(Request<T> myRequest, RequestFuture<T> future) {
         queue.add(myRequest);
         try {
             return future.get(timeout, TimeUnit.SECONDS);
@@ -67,6 +67,10 @@ public class HttpClient {
             VolleyLog.e(e, null);
         }
         return null;
+    }
+
+    public void release() {
+        queue.stop();
     }
 
     public static class Builder {
@@ -127,7 +131,7 @@ public class HttpClient {
         }
 
         public Map<String, String> headers() {
-            String credentials = Base64.encodeToString((proxyLogin + proxyPassword).getBytes(), Base64.NO_WRAP);
+            String credentials = Base64.encodeToString((proxyLogin + proxyPassword).getBytes("UTF-8"), Base64.NO_WRAP);
             Map<String, String> headers = new HashMap<>();
             headers.put("Authorization", "Basic " + credentials);
             headers.put("Proxy-Authorization", "Basic " + credentials);
@@ -148,6 +152,9 @@ public class HttpClient {
         }
     }
 
+    /**
+     * Example request implementation
+     **/
     public static class MyStringRequest extends StringRequest {
 
         private MyProxy myProxy;
@@ -155,6 +162,7 @@ public class HttpClient {
         public MyStringRequest(int method, String url, MyProxy myProxy, RequestFuture<String> future) {
             super(method, url, future, future);
             this.myProxy = myProxy;
+            setShouldCache(false);
         }
 
         @Override
