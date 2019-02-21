@@ -62,11 +62,11 @@ public class HttpClient {
         try {
             return future.get(timeout, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            VolleyLog.e(e, null);
+            VolleyLog.e(e, "");
         } catch (ExecutionException e) {
-            VolleyLog.e(e, null);
+            VolleyLog.e(e, "");
         } catch (TimeoutException e) {
-            VolleyLog.e(e, null);
+            VolleyLog.e(e, "");
         }
         return null;
     }
@@ -170,9 +170,9 @@ public class HttpClient {
             Map<String, String> headers = super.getHeaders();
             if (myProxy != null) {
                 try {
-                    headers.putAll(myProxy.headers());
+                    new HashMap<>(headers).putAll(myProxy.headers());
                 } catch (UnsupportedEncodingException e) {
-                    VolleyLog.e(e, null);
+                    VolleyLog.e(e, "");
                 }
             }
             return headers;

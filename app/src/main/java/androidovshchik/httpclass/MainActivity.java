@@ -33,13 +33,13 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public String call() {
-                String url = "https://telegram.org";
+                String url = "https://telegram.org/index.html";
                 HttpClient.MyProxy myProxy = new HttpClient.MyProxy()
                     .type(Proxy.Type.HTTP)
-                    .host("")
-                    .port(0)
-                    .login("")
-                    .password("")
+                    .host("45.32.152.77")
+                    .port(28834)
+                    .login("gzKdu0")
+                    .password("ao13CD")
                     .create();
                 RequestFuture<String> future = RequestFuture.newFuture();
                 return client.execute(new SimpleStringRequest(GET, url, myProxy, future), future);
