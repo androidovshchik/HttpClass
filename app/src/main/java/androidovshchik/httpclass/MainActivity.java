@@ -27,7 +27,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        client = new HttpClient(getApplicationContext());
+        client = new HttpClient(getApplicationContext(), new HttpClient.Builder()
+            .certificate(R.raw.debug)
+            .create());
         disposable.add(Observable.fromCallable(new Callable<String>() {
 
             @Override
@@ -39,10 +41,6 @@ public class MainActivity extends AppCompatActivity {
                     .port(28834)
                     .login("gzKdu0")
                     .password("ao13CD")
-                    /*.host("138.59.204.19")
-                    .port(9703)
-                    .login("uvLW5c")
-                    .password("ZKcyaz")*/
                     .create();
                 RequestFuture<String> future = RequestFuture.newFuture();
                 return client.execute(new MyStringRequest(GET, url, myProxy, future), future);
