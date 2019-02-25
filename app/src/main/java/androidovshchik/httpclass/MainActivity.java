@@ -15,7 +15,6 @@ import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
 
-import static com.android.volley.Request.Method.GET;
 import static java.net.Proxy.Type.HTTP;
 
 public class MainActivity extends AppCompatActivity {
@@ -46,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
                     .password("5bCcJe")
                     .create();
                 RequestFuture<String> future = RequestFuture.newFuture();
-                return client.execute(new MyStringRequest(GET, url, null, future), future);
+                return client.execute(new MyPostRequest(url, future), future);
             }
         }).subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())

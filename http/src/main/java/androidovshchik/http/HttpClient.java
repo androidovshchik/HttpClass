@@ -201,7 +201,7 @@ public class HttpClient {
 
         @Override
         public Map<String, String> getHeaders() throws AuthFailureError {
-            Map<String, String> headers = new HashMap<>(super.getHeaders());
+            HashMap<String, String> headers = new HashMap<>(super.getHeaders());
             if (myProxy != null) {
                 try {
                     headers.putAll(myProxy.headers());
@@ -246,13 +246,12 @@ public class HttpClient {
         public HttpResponse executeRequest(Request<?> request, Map<String, String> additionalHeaders)
             throws IOException, AuthFailureError {
             String url = request.getUrl();
-            HashMap<String, String> map = new HashMap<>();
-            map.putAll(additionalHeaders);
-            // Request.getHeaders() takes precedence over the given additional (cache) headers).
-            map.putAll(request.getHeaders());
+            HashMap<String, String> map = new HashMap<>(additionalHeaders);
             if (mUserAgent != null) {
                 map.put("User-Agent", mUserAgent);
             }
+            // Request.getHeaders() takes precedence over the given additional (cache) headers).
+            map.putAll(request.getHeaders());
             if (mUrlRewriter != null) {
                 String rewritten = mUrlRewriter.rewriteUrl(url);
                 if (rewritten == null) {
