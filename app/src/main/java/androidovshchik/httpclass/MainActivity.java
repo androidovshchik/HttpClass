@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         client = new HttpClient(getApplicationContext(), new HttpClient.Builder()
-            .certificate(R.raw.debug)
+            //.certificate(R.raw.debug)
             .userAgent(null)
             .timeout(30)
             .create());
