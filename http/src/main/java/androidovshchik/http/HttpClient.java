@@ -279,7 +279,6 @@ public class HttpClient {
                 if (!hasResponseBody(request.getMethod(), responseCode)) {
                     return new HttpResponse(responseCode, convertHeaders(connection.getHeaderFields()));
                 }
-
                 // Need to keep the connection open until the stream is consumed by the caller. Wrap the
                 // stream such that close() will disconnect the connection.
                 keepConnectionOpen = true;
@@ -364,18 +363,15 @@ public class HttpClient {
 
         private HttpURLConnection openConnection(URL url, Request<?> request) throws IOException {
             HttpURLConnection connection = createConnection(url, request);
-
             int timeoutMs = request.getTimeoutMs();
             connection.setConnectTimeout(timeoutMs);
             connection.setReadTimeout(timeoutMs);
             connection.setUseCaches(false);
             connection.setDoInput(true);
-
             // use caller-provided custom SslSocketFactory, if any, for HTTPS
             if ("https".equals(url.getProtocol()) && mSslSocketFactory != null) {
                 ((HttpsURLConnection) connection).setSSLSocketFactory(mSslSocketFactory);
             }
-
             return connection;
         }
 
