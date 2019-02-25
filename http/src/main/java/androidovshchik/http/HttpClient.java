@@ -1,4 +1,4 @@
-package androidovshchik.httpclass;
+package androidovshchik.http;
 
 import android.content.Context;
 import android.util.Base64;
@@ -61,6 +61,7 @@ public class HttpClient {
             queue = Volley.newRequestQueue(context, new ProxyStack(builder.userAgent));
             return;
         }
+        SSLSocketFactory sf = null;
         try {
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
             InputStream caInput = new BufferedInputStream(context.getResources().openRawResource(builder.certificate));
@@ -75,11 +76,11 @@ public class HttpClient {
             tmf.init(trusted);
             SSLContext sslContext = SSLContext.getInstance("TLS");
             sslContext.init(null, tmf.getTrustManagers(), null);
-            SSLSocketFactory sf = sslContext.getSocketFactory();
-            queue = Volley.newRequestQueue(context, new ProxyStack(builder.userAgent, null, sf));
+            sf = sslContext.getSocketFactory();
         } catch (Exception e) {
-            queue = Volley.newRequestQueue(context, new ProxyStack(builder.userAgent));
+            VolleyLog.e(e, "");
         }
+        queue = Volley.newRequestQueue(context, new ProxyStack(builder.userAgent, null, sf));
     }
 
     public <T> T execute(MyRequest<T> myRequest, RequestFuture<T> future) {

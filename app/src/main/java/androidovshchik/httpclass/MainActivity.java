@@ -8,6 +8,7 @@ import com.android.volley.toolbox.RequestFuture;
 
 import java.util.concurrent.Callable;
 
+import androidovshchik.http.HttpClient;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;

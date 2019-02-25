@@ -7,6 +7,8 @@ import com.android.volley.toolbox.RequestFuture;
 
 import java.io.UnsupportedEncodingException;
 
+import androidovshchik.http.HttpClient;
+
 /**
  * Based on StringRequest class
  * @see com.android.volley.toolbox.StringRequest
