@@ -4,8 +4,6 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.TextView;
 
-import com.android.volley.toolbox.RequestFuture;
-
 import org.json.JSONObject;
 
 import java.util.concurrent.Callable;
@@ -47,8 +45,9 @@ public class MainActivity extends AppCompatActivity {
                     .password("5bCcJe")
                     .create();
                 JSONObject jsonBody = new JSONObject();
-                RequestFuture<String> future = RequestFuture.newFuture();
-                return client.execute(new MyPostRequest(url, jsonBody.toString(), future), future);
+                //RequestFuture<String> future = RequestFuture.newFuture();
+                //return client.execute(new MyPostRequest(url, jsonBody.toString(), future), future);
+                return client.post(url, jsonBody.toString());
             }
         }).subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())

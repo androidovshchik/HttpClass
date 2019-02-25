@@ -1,12 +1,10 @@
-package androidovshchik.httpclass;
+package androidovshchik.http;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.toolbox.RequestFuture;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import androidovshchik.http.HttpClient;
 
 import static com.android.volley.Request.Method.GET;
 

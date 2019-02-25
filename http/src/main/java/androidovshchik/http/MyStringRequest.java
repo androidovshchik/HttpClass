@@ -1,4 +1,4 @@
-package androidovshchik.httpclass;
+package androidovshchik.http;
 
 import com.android.volley.NetworkResponse;
 import com.android.volley.Response;
@@ -6,8 +6,6 @@ import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.RequestFuture;
 
 import java.io.UnsupportedEncodingException;
-
-import androidovshchik.http.HttpClient;
 
 /**
  * Based on StringRequest class

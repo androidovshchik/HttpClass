@@ -85,6 +85,36 @@ public class HttpClient {
         queue = Volley.newRequestQueue(context, new ProxyStack(builder.userAgent, null, sf));
     }
 
+    public String get(String url) {
+        return get(url, null, null);
+    }
+
+    public String get(String url, Map<String, String> headers) {
+        return get(url, headers, null);
+    }
+
+    public String get(String url, Map<String, String> headers, HttpClient.MyProxy myProxy) {
+        RequestFuture<String> future = RequestFuture.newFuture();
+        return execute(new MyGetRequest(url, headers, myProxy, future), future);
+    }
+
+    public String post(String url) {
+        return post(url, null, null, null);
+    }
+
+    public String post(String url, String body) {
+        return post(url, body, null, null);
+    }
+
+    public String post(String url, String body, Map<String, String> headers) {
+        return post(url, body, headers, null);
+    }
+
+    public String post(String url, String body, Map<String, String> headers, HttpClient.MyProxy myProxy) {
+        RequestFuture<String> future = RequestFuture.newFuture();
+        return execute(new MyPostRequest(url, body, headers, myProxy, future), future);
+    }
+
     public <T> T execute(MyRequest<T> myRequest, RequestFuture<T> future) {
         queue.add(myRequest);
         try {
