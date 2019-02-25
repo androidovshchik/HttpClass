@@ -35,7 +35,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public String call() {
-                String url = "https://telegram.org";
+                String url = "https://cities.373soft.ru:8443/bridge-1.1/ws/driverServices/authorization?contractNumber=17491&password=0ef258774fcd5fb6013985f3662d1825&phone=+79194442212";
                 HttpClient.MyProxy myProxy = new HttpClient.MyProxy()
                     .type(HTTP)
                     .host("45.32.152.77")
@@ -44,7 +44,7 @@ public class MainActivity extends AppCompatActivity {
                     .password("ao13CD")
                     .create();
                 RequestFuture<String> future = RequestFuture.newFuture();
-                return client.execute(new MyStringRequest(GET, url, myProxy, future), future);
+                return client.execute(new MyStringRequest(GET, url, null, future), future);
             }
         }).subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())

@@ -63,6 +63,8 @@ public class HttpClient {
         }
         SSLSocketFactory sf = null;
         try {
+            //https://stackoverflow.com/questions/28191023/ssl-pinning-with-volley-network-library-on-android
+            //https://stackoverflow.com/questions/39264056/android-java-security-cert-certpathvalidatorexception-trust-anchor-for-certific
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
             InputStream caInput = new BufferedInputStream(context.getResources().openRawResource(builder.certificate));
             Certificate ca = cf.generateCertificate(caInput);
@@ -343,17 +345,20 @@ public class HttpClient {
             if (!(request instanceof MyRequest)) {
                 throw new IOException("Request must be instance of MyRequest class");
             }
+            HttpURLConnection connection;
             MyProxy myProxy = ((MyRequest) request).myProxy;
-            VolleyLog.d("%s", myProxy.toString());
-            SocketAddress address = InetSocketAddress.createUnresolved(myProxy.proxyHost, myProxy.proxyPort);
-            Proxy proxy = new Proxy(myProxy.proxyType, address);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection(proxy);
-
+            if (myProxy != null) {
+                VolleyLog.d("%s", myProxy.toString());
+                SocketAddress address = InetSocketAddress.createUnresolved(myProxy.proxyHost, myProxy.proxyPort);
+                Proxy proxy = new Proxy(myProxy.proxyType, address);
+                connection = (HttpURLConnection) url.openConnection(proxy);
+            } else {
+                connection = (HttpURLConnection) url.openConnection();
+            }
             // Workaround for the M release HttpURLConnection not observing the
             // HttpURLConnection.setFollowRedirects() property.
             // https://code.google.com/p/android/issues/detail?id=194495
             connection.setInstanceFollowRedirects(HttpURLConnection.getFollowRedirects());
-
             return connection;
         }
 
