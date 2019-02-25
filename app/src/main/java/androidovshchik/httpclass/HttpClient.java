@@ -1,7 +1,6 @@
 package androidovshchik.httpclass;
 
 import android.content.Context;
-import android.os.Build;
 import android.util.Base64;
 
 import com.android.volley.AuthFailureError;
@@ -15,43 +14,30 @@ import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.RequestFuture;
 import com.android.volley.toolbox.Volley;
 
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
 import java.io.DataOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.math.BigInteger;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URL;
-import java.security.KeyManagementException;
 import java.security.KeyStore;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.security.interfaces.RSAPublicKey;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
 
 @SuppressWarnings("unused")
 public class HttpClient {
@@ -63,41 +49,44 @@ public class HttpClient {
     protected final RequestQueue queue;
 
     private int timeout;
+    private String userAgent;
 
     public HttpClient(Context context) {
         this(context, new Builder().create());
     }
 
     public HttpClient(Context context, Builder builder) {
-        String publicKey = null;
-        if (builder.certificate > 0) {
-            try {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(context.getResources()
-                    .openRawResource(builder.certificate)));
-                StringBuilder total = new StringBuilder();
-                for (String line; (line = reader.readLine()) != null; ) {
-                    total.append(line)
-                        .append('\n');
-                }
-                publicKey = total.toString()
-                    .trim();
-            } catch (Exception e) {
-                VolleyLog.e(e, "");
-            }
-        }
-        queue = Volley.newRequestQueue(context, new ProxyStack(publicKey));
         timeout = builder.timeout;
+        if (builder.certificate <= 0) {
+            queue = Volley.newRequestQueue(context, new ProxyStack(builder.userAgent));
+            return;
+        }
+        try {
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            InputStream caInput = new BufferedInputStream(context.getResources().openRawResource(builder.certificate));
+            Certificate ca = cf.generateCertificate(caInput);
+            caInput.close();
+            String keyStoreType = KeyStore.getDefaultType();
+            KeyStore trusted = KeyStore.getInstance(keyStoreType);
+            trusted.load(null, null);
+            trusted.setCertificateEntry("ca", ca);
+            String tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(tmfAlgorithm);
+            tmf.init(trusted);
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, tmf.getTrustManagers(), null);
+            SSLSocketFactory sf = sslContext.getSocketFactory();
+            queue = Volley.newRequestQueue(context, new ProxyStack(builder.userAgent, null, sf));
+        } catch (Exception e) {
+            queue = Volley.newRequestQueue(context, new ProxyStack(builder.userAgent));
+        }
     }
 
-    public <T> T execute(Request<T> myRequest, RequestFuture<T> future) {
+    public <T> T execute(MyRequest<T> myRequest, RequestFuture<T> future) {
         queue.add(myRequest);
         try {
             return future.get(timeout, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            VolleyLog.e(e, "");
-        } catch (ExecutionException e) {
-            VolleyLog.e(e, "");
-        } catch (TimeoutException e) {
+        } catch (Exception e) {
             VolleyLog.e(e, "");
         }
         return null;
@@ -111,6 +100,7 @@ public class HttpClient {
 
         private int certificate = 0;
         private int timeout = 30;
+        private String userAgent;
 
         public Builder certificate(int rawId) {
             certificate = rawId;
@@ -119,6 +109,11 @@ public class HttpClient {
 
         public Builder timeout(int seconds) {
             timeout = seconds;
+            return this;
+        }
+
+        public Builder userAgent(String value) {
+            userAgent = value;
             return this;
         }
 
@@ -228,26 +223,20 @@ public class HttpClient {
 
         private final HurlStack.UrlRewriter mUrlRewriter;
         private SSLSocketFactory mSslSocketFactory;
+        private String mUserAgent;
 
-        public ProxyStack(String publicKey) {
-            this(publicKey, null);
+        public ProxyStack(String userAgent) {
+            this(userAgent, null);
         }
 
-        public ProxyStack(String publicKey, HurlStack.UrlRewriter urlRewriter) {
-            this(publicKey, urlRewriter, null);
+        public ProxyStack(String userAgent, HurlStack.UrlRewriter urlRewriter) {
+            this(userAgent, urlRewriter, null);
         }
 
-        public ProxyStack(String publicKey, HurlStack.UrlRewriter urlRewriter, SSLSocketFactory sslSocketFactory) {
+        public ProxyStack(String userAgent, HurlStack.UrlRewriter urlRewriter, SSLSocketFactory sslSocketFactory) {
+            mUserAgent = userAgent;
             mUrlRewriter = urlRewriter;
-            if (publicKey != null) {
-                try {
-                    mSslSocketFactory = new TLSSocketFactory(publicKey);
-                } catch (KeyManagementException e) {
-                    VolleyLog.e(e, "");
-                } catch (NoSuchAlgorithmException e) {
-                    VolleyLog.e(e, "");
-                }
-            }
+            mSslSocketFactory = sslSocketFactory;
         }
 
         @Override
@@ -258,6 +247,9 @@ public class HttpClient {
             map.putAll(additionalHeaders);
             // Request.getHeaders() takes precedence over the given additional (cache) headers).
             map.putAll(request.getHeaders());
+            if (mUserAgent != null) {
+                map.put("User-Agent", mUserAgent);
+            }
             if (mUrlRewriter != null) {
                 String rewritten = mUrlRewriter.rewriteUrl(url);
                 if (rewritten == null) {
@@ -452,151 +444,6 @@ public class HttpClient {
             DataOutputStream out = new DataOutputStream(connection.getOutputStream());
             out.write(body);
             out.close();
-        }
-    }
-
-    private static class PubKeyManager implements X509TrustManager {
-
-        private String publicKey;
-
-        public PubKeyManager(String publicKey) {
-            this.publicKey = publicKey;
-        }
-
-        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-            if (chain == null) {
-                throw new IllegalArgumentException(
-                    "checkServerTrusted: X509Certificate array is null");
-            }
-            if (!(chain.length > 0)) {
-                throw new IllegalArgumentException(
-                    "checkServerTrusted: X509Certificate is empty");
-            }
-
-            // Perform customary SSL/TLS checks
-            TrustManagerFactory tmf;
-            try {
-                tmf = TrustManagerFactory.getInstance("X509");
-                tmf.init((KeyStore) null);
-
-                for (TrustManager trustManager : tmf.getTrustManagers()) {
-                    ((X509TrustManager) trustManager).checkServerTrusted(
-                        chain, authType);
-                }
-
-            } catch (Exception e) {
-                throw new CertificateException(e.toString());
-            }
-
-            // Hack ahead: BigInteger and toString(). We know a DER encoded Public
-            // Key starts with 0x30 (ASN.1 SEQUENCE and CONSTRUCTED), so there is
-            // no leading 0x00 to drop.
-            RSAPublicKey pubkey = (RSAPublicKey) chain[0].getPublicKey();
-            String encoded = new BigInteger(1 /* positive */, pubkey.getEncoded())
-                .toString(16);
-
-            // Pin it!
-            final boolean expected = publicKey.equalsIgnoreCase(encoded);
-            // fail if expected public key is different from our public key
-            if (!expected) {
-                throw new CertificateException(
-                    "Not trusted");
-            }
-        }
-
-        public void checkClientTrusted(X509Certificate[] xcs, String string) {
-            // throw new
-            // UnsupportedOperationException("checkClientTrusted: Not supported yet.");
-        }
-
-        public X509Certificate[] getAcceptedIssuers() {
-            // throw new
-            // UnsupportedOperationException("getAcceptedIssuers: Not supported yet.");
-            return null;
-        }
-    }
-
-    private static class TLSSocketFactory extends SSLSocketFactory {
-
-        private SSLSocketFactory internalSSLSocketFactory;
-
-        public TLSSocketFactory(String publicKey) throws KeyManagementException, NoSuchAlgorithmException {
-            SSLContext context = SSLContext.getInstance("TLS");
-            TrustManager tm[] = {new PubKeyManager(publicKey)};
-            context.init(null, tm, null);
-            internalSSLSocketFactory = context.getSocketFactory();
-        }
-
-        @Override
-        public String[] getDefaultCipherSuites() {
-            return internalSSLSocketFactory.getDefaultCipherSuites();
-        }
-
-        @Override
-        public String[] getSupportedCipherSuites() {
-            return internalSSLSocketFactory.getSupportedCipherSuites();
-        }
-
-        @Override
-        public Socket createSocket(Socket s, String host, int port, boolean autoClose) throws IOException {
-            return enableTLSOnSocket(internalSSLSocketFactory.createSocket(s, host, port, autoClose));
-        }
-
-        @Override
-        public Socket createSocket(String host, int port) throws IOException {
-            return enableTLSOnSocket(internalSSLSocketFactory.createSocket(host, port));
-        }
-
-        @Override
-        public Socket createSocket(String host, int port, InetAddress localHost, int localPort) throws IOException {
-            return enableTLSOnSocket(internalSSLSocketFactory.createSocket(host, port, localHost, localPort));
-        }
-
-        @Override
-        public Socket createSocket(InetAddress host, int port) throws IOException {
-            return enableTLSOnSocket(internalSSLSocketFactory.createSocket(host, port));
-        }
-
-        @Override
-        public Socket createSocket(InetAddress address, int port, InetAddress localAddress, int localPort) throws IOException {
-            return enableTLSOnSocket(internalSSLSocketFactory.createSocket(address, port, localAddress, localPort));
-        }
-
-        private Socket enableTLSOnSocket(Socket socket) {
-            if (socket != null && (socket instanceof SSLSocket)) {
-                SSLSocket sslSocket = ((SSLSocket) socket);
-                String[] enabledProtocols = sslSocket.getEnabledProtocols();
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN)
-                    ((SSLSocket) socket).setEnabledProtocols((enabledProtocols));
-                else
-                    ((SSLSocket) socket).setEnabledProtocols(checkAndAddTLSv1_1Andv1_2(enabledProtocols));
-            }
-            return socket;
-        }
-
-        private String[] checkAndAddTLSv1_1Andv1_2(String[] currentProtocols) {
-            boolean hasTLSv1_1 = false;
-            boolean hasTLSv1_2 = false;
-            String tlsv11 = "TLSv1.1";
-            String tlsv12 = "TLSv1.2";
-
-            List<String> list = new ArrayList<>(Arrays.asList(currentProtocols));
-
-            for (String protocol : currentProtocols) {
-                if (protocol.equals(tlsv11)) {
-                    hasTLSv1_1 = true;
-                }
-                if (protocol.equals(tlsv12)) {
-                    hasTLSv1_2 = true;
-                }
-            }
-            if (!hasTLSv1_1) {
-                list.add(tlsv11);
-            }
-            if (!hasTLSv1_2) {
-                list.add(tlsv12);
-            }
-            return list.toArray(new String[list.size()]);
         }
     }
 }
